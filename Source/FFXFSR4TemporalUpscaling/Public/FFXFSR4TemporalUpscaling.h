@@ -23,6 +23,10 @@
 
 #include "Modules/ModuleManager.h"
 #include "RHIDefinitions.h"
+#ifndef RHI_NEW_GPU_PROFILER
+#define RHI_NEW_GPU_PROFILER 0
+#endif
+
 #include "FFXShared.h"
 
 class FFXFSR4TemporalUpscaler;
@@ -31,7 +35,8 @@ class FFXFSR4ViewExtension;
 #include "TemporalUpscaler.h"
 using IFFXFSR4TemporalUpscaler = UE::Renderer::Private::ITemporalUpscaler;
 #else
-#include "PostProcess/TemporalAA.h"
+#include "RHIShaderPlatform.h"
+class ITemporalUpscaler;
 using IFFXFSR4TemporalUpscaler = ITemporalUpscaler;
 #endif
 

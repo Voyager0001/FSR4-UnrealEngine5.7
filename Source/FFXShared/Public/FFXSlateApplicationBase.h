@@ -28,6 +28,6 @@
 #undef FSlateApplication
 #undef private
 
-//#if UE_VERSION_AT_LEAST(5, 7, 0)
-//#error "Unsupported Unreal Engine 5 version - update the definition for FFXSlateApplicationBase"
-//#endif
+#if UE_VERSION_AT_LEAST(5, 8, 0)
+#error "Unsupported Unreal Engine 5 version - update the definition for FFXSlateApplicationBase"
+#endif

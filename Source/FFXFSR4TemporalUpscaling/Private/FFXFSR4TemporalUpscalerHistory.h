@@ -61,11 +61,44 @@ struct FFXFSR4State : public FRHIResource
 		return FRHIResource::GetRefCount();
 	}
 
+	void PushActivity(FGPUFenceRHIRef Fence)
+	{
+		// ActiveFences is a single-producer single-consumer queue.  only produce from the RHI thread so we don't have to synchronize.
+		check((IsRHIThreadRunning() && IsInRHIThread()) || IsInRenderingThread());
+
+		ActiveFences.Enqueue(Fence);
+	}
+
+	bool PollActivity()
+	{
+		// ActiveFences is a single-producer single-consumer queue.  only consume from the Render thread so we don't have to synchronize.
+		check(IsInRenderingThread());
+
+		while (!ActiveFences.IsEmpty())
+		{
+			FGPUFenceRHIRef* ActiveFence = ActiveFences.Peek();
+			if (ActiveFence && ActiveFence->IsValid() && (*ActiveFence)->Poll())
+			{
+				ActiveFences.Pop();
+			}
+			else
+			{
+				break;
+			}
+		}
+
+		return ActiveFences.IsEmpty();
+	}
+
 	IFFXSharedBackend* Backend;
 	ffxCreateContextDescUpscale Params;
 	ffxContext Fsr4;
 	uint64 LastUsedFrame;
 	uint32 ViewID;
+	uint32 RequestedFSRProvider;
+
+private:
+	TQueue<FGPUFenceRHIRef, EQueueMode::Spsc> ActiveFences;
 };
 typedef TRefCountPtr<FFXFSR4State> FSR4StateRef;
 
@@ -94,6 +127,8 @@ public:
 
 	void SetState(FSR4StateRef NewState);
 
+	bool HasFsrHistoryId() const;
+
 	inline FSR4StateRef const& GetState() const
 	{
 		return Fsr4;
@@ -115,9 +150,11 @@ public:
 	}
 
 	static TCHAR const* GetUpscalerName();
+	static uint64 GetFsrHistoryIdFromDebugName();
 
 private:
 	static TCHAR const* FfxFsr4DebugName;
+	uint64 FsrHistoryId;
 	FSR4StateRef Fsr4;
 	FFXFSR4TemporalUpscaler* Upscaler;
 	TRefCountPtr<IPooledRenderTarget> MotionVectors;

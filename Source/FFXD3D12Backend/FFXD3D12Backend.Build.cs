@@ -27,6 +27,7 @@ public class FFXD3D12Backend : ModuleRules
 	public FFXD3D12Backend(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+		bTreatAsEngineModule = true;
 
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
@@ -70,10 +71,7 @@ public class FFXD3D12Backend : ModuleRules
 
 			// Required for some private headers needed for the rendering support.
 			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
-            PublicIncludePaths.Add(Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private"));
-            PublicIncludePaths.Add(Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Internal"));
-            PublicIncludePaths.Add(Path.Combine(EngineDir, @"Source\Runtime\RHICore\Internal"));
-            PrivateIncludePaths.AddRange(
+			PrivateIncludePaths.AddRange(
 				new string[] {
 					Path.Combine(EngineDir, @"Source\Runtime\D3D12RHI\Private")
 			});

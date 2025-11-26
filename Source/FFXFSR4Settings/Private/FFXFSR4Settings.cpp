@@ -333,10 +333,10 @@ TAutoConsoleVariable<float> CVarFSR4MinDisocclutionAccumulation(
 	ECVF_RenderThreadSafe
 );
 
-TAutoConsoleVariable<int32> CVarFSR4DeferDelete(
-	TEXT("r.FidelityFX.FSR4.DeferDelete"),
+TAutoConsoleVariable<int32> CVarRequestFSRProvider(
+	TEXT("r.FidelityFX.FSR4.RequestProvider"),
 	0,
-	TEXT("Number of frames to defer deletion - defaults to 0 which relies on the RHI to ensure resources aren't released while in use on the GPU."),
+	TEXT("Assigns the Upscaler provider to a specific implementation of FSR.  Can be used to request selection of FSR3 on a configuration that should support FSR4, for example.  Has no effect if the FSR provider cannot be found.  0 is disabled, disabled by default."),
 	ECVF_RenderThreadSafe
 );
 

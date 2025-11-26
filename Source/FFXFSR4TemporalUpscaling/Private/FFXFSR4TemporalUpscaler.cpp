@@ -812,7 +812,7 @@ FFXFSR4TemporalUpscaler::FFXFSR4TemporalUpscaler()
 
 FFXFSR4TemporalUpscaler::~FFXFSR4TemporalUpscaler()
 {
-	DeferredCleanup(0);
+	DeferredCleanup(true);
 	FFXSystemInterface::UnregisterCustomFXSystem(FFXFSR4FXSystem::FXName);
 }
 
@@ -830,25 +830,15 @@ void FFXFSR4TemporalUpscaler::ReleaseState(FSR4StateRef State)
 	}
 }
 
-void FFXFSR4TemporalUpscaler::DeferredCleanup(uint64 FrameNum) const
+void FFXFSR4TemporalUpscaler::DeferredCleanup(bool force) const
 {
 	FScopeLock Lock(&Mutex);
-	int32 NumFrames = CVarFSR4DeferDelete.GetValueOnAnyThread();
-	if (NumFrames == 0 || FrameNum == 0)
-	{
-		AvailableStates.Empty();
-	}
-	else
+	if (!force)
 	{
 		TSet<FSR4StateRef> DisposeStates;
 		for (auto& State : AvailableStates)
 		{
-			ffxCreateContextDescUpscale const& CurrentParams = State->Params;
-			if (State->LastUsedFrame <= FrameNum && ((FrameNum - State->LastUsedFrame) > NumFrames))
-			{
-				DisposeStates.Add(State);
-			}
-			else if ((State->LastUsedFrame + NumFrames) < FrameNum)
+			if (State->PollActivity())
 			{
 				DisposeStates.Add(State);
 			}
@@ -858,6 +848,10 @@ void FFXFSR4TemporalUpscaler::DeferredCleanup(uint64 FrameNum) const
 		{
 			AvailableStates.Remove(State);
 		}
+	}
+	else
+	{
+		AvailableStates.Empty();
 	}
 }
 
@@ -1054,8 +1048,12 @@ void FFXFSR4TemporalUpscaler::AddPasses(
 		ITemporalUpscaler::FOutputs Outputs;
 #endif
 
+#if RHI_NEW_GPU_PROFILER
+		RDG_EVENT_SCOPE_STAT(GraphBuilder, FidelityFXSuperResolution4Pass, "FidelityFXSuperResolution4Pass");
+#else
 		RDG_GPU_STAT_SCOPE(GraphBuilder, FidelityFXSuperResolution4Pass);
 		RDG_EVENT_SCOPE(GraphBuilder, "FidelityFXSuperResolution4Pass");
+#endif
 
 		CurrentGraphBuilder = &GraphBuilder;
 #if UE_VERSION_OLDER_THAN(5, 0, 0)
@@ -1502,6 +1500,11 @@ void FFXFSR4TemporalUpscaler::AddPasses(
 		const TRefCountPtr<IFFXFSR4CustomTemporalAAHistory> PrevCustomHistory = View.PrevViewInfo.CustomTemporalAAHistory;
 #endif
 		FFXFSR4TemporalUpscalerHistory* CustomHistory = static_cast<FFXFSR4TemporalUpscalerHistory*>(PrevCustomHistory.GetReference());
+		if (CustomHistory && !CustomHistory->HasFsrHistoryId())
+		{
+			// The history data wasn't created by FSR, clear it
+			CustomHistory = nullptr;
+		}
 		bool HasValidContext = CustomHistory && CustomHistory->GetState().IsValid();
 		{
 			// FSR setup
@@ -1540,10 +1543,12 @@ void FFXFSR4TemporalUpscaler::AddPasses(
 			// We want to reuse FSR4 states rather than recreating them wherever possible as they allocate significant memory for their internal resources.
 			// The current custom history is the ideal, but the recently released states can be reused with a simple reset too when the engine cuts the history.
 			// This reduces the memory churn imposed by camera cuts.
+			int RequestedFSRProvider = CVarRequestFSRProvider.GetValueOnRenderThread();
+
 			if (HasValidContext)
 			{
 				ffxCreateContextDescUpscale const& CurrentParams = CustomHistory->GetState()->Params;
-				if ((CustomHistory->GetState()->LastUsedFrame == GFrameCounterRenderThread) || (CurrentParams.maxRenderSize.width < Params.maxRenderSize.width) || (CurrentParams.maxRenderSize.height < Params.maxRenderSize.height) || (CurrentParams.maxUpscaleSize.width != Params.maxUpscaleSize.width) || (CurrentParams.maxUpscaleSize.height != Params.maxUpscaleSize.height) || (Params.flags != CurrentParams.flags))
+				if ((CustomHistory->GetState()->LastUsedFrame == GFrameCounterRenderThread) || (CurrentParams.maxRenderSize.width < Params.maxRenderSize.width) || (CurrentParams.maxRenderSize.height < Params.maxRenderSize.height) || (CurrentParams.maxUpscaleSize.width != Params.maxUpscaleSize.width) || (CurrentParams.maxUpscaleSize.height != Params.maxUpscaleSize.height) || (Params.flags != CurrentParams.flags) || (CustomHistory->GetState()->RequestedFSRProvider != RequestedFSRProvider))
 				{
 					HasValidContext = false;
 				}
@@ -1565,7 +1570,7 @@ void FFXFSR4TemporalUpscaler::AddPasses(
 						// These states can't be reused immediately but perhaps a future frame, otherwise we break split screen.
 						continue;
 					}
-					else if ((CurrentParams.maxRenderSize.width < Params.maxRenderSize.width) || (CurrentParams.maxRenderSize.height < Params.maxRenderSize.height) || (CurrentParams.maxUpscaleSize.width != Params.maxUpscaleSize.width) || (CurrentParams.maxUpscaleSize.height != Params.maxUpscaleSize.height) || (Params.flags != CurrentParams.flags))
+					else if ((CurrentParams.maxRenderSize.width < Params.maxRenderSize.width) || (CurrentParams.maxRenderSize.height < Params.maxRenderSize.height) || (CurrentParams.maxUpscaleSize.width != Params.maxUpscaleSize.width) || (CurrentParams.maxUpscaleSize.height != Params.maxUpscaleSize.height) || (Params.flags != CurrentParams.flags) || (State->RequestedFSRProvider != RequestedFSRProvider))
 					{
 						// States that can't be trivially reused need to just be released to save memory.
 						DisposeStates.Add(State);
@@ -1618,30 +1623,70 @@ void FFXFSR4TemporalUpscaler::AddPasses(
 			Outputs.NewHistory = new FFXFSR4TemporalUpscalerHistory(FSR4State, const_cast<FFXFSR4TemporalUpscaler*>(this), MotionVectorRT);
 #endif
 
-			//-----------------------------------------------------------------------------------------------------------------------------------------
-			// Invalidate FSR4 Contexts
-			//   If a context already exists but it is not valid for the current frame's features, clean it up in preparation for creating a new one.
-			//-----------------------------------------------------------------------------------------------------------------------------------------
-
-			if (HasValidContext)
-			{
-				ffxCreateContextDescUpscale const& CurrentParams = FSR4State->Params;
-
-				// Display size must match for splitscreen to work.
-				if ((CurrentParams.maxRenderSize.width < Params.maxRenderSize.width) || (CurrentParams.maxRenderSize.height < Params.maxRenderSize.height) || (CurrentParams.maxUpscaleSize.width != Params.maxUpscaleSize.width) || (CurrentParams.maxUpscaleSize.height != Params.maxUpscaleSize.height) || (Params.flags != CurrentParams.flags))
-				{
-					ApiAccessor->ffxDestroyContext(&FSR4State->Fsr4);
-					HasValidContext = false;
-					bHistoryValid = false;
-				}
-			}
-
 			//------------------------------------------------------
 			// Create FSR4 Contexts
 			//   If no valid context currently exists, create one.
 			//------------------------------------------------------
 			if (!HasValidContext)
 			{
+				if (RequestedFSRProvider > 0)
+				{
+					uint64_t numFSRVersions;
+
+					ffxQueryDescGetVersions Desc = {};
+					Desc.header.type = FFX_API_QUERY_DESC_TYPE_GET_VERSIONS;
+					Desc.createDescType = FFX_API_EFFECT_ID_UPSCALE;
+					Desc.device = GDynamicRHI->RHIGetNativeDevice();
+					Desc.outputCount = &numFSRVersions;
+					if (ApiAccessor->ffxQuery(nullptr, (ffxQueryDescHeader*)&Desc) == FFX_API_RETURN_OK && numFSRVersions > 0)
+					{
+						const uint64_t kVersionStringMaxLength = 16;
+
+						// make sure upcoming dynamic allocations will stay pretty small, so we can safely stack-allocate.
+						const uint64_t kVersionSize = numFSRVersions * sizeof(uint64_t);
+						const uint64_t kBufferSize = numFSRVersions * sizeof(char) * kVersionStringMaxLength;
+						const uint64_t kPointerSize = numFSRVersions * sizeof(char*);
+						check(kBufferSize + kPointerSize + kVersionSize < 256);
+
+						Desc.versionIds = (uint64_t*)alloca(kVersionSize);
+
+						char* targetBuffers = (char*)alloca(kBufferSize);
+						Desc.versionNames = (const char**)alloca(kPointerSize);
+						for (int i = 0; i < numFSRVersions; i++)
+						{
+							Desc.versionNames[i] = (char*)(targetBuffers + kVersionStringMaxLength * i / sizeof(char));
+						}
+
+						if (ApiAccessor->ffxQuery(nullptr, (ffxQueryDescHeader*)&Desc) == FFX_API_RETURN_OK)
+						{
+							bool success = false;
+
+							for (int i = 0; i < numFSRVersions; i++)
+							{
+								int versionMajor = (int)(Desc.versionNames[i][0] - '0');
+								if (versionMajor == RequestedFSRProvider)
+								{
+									UE_LOG(LogFSR4, Log, TEXT("Forcing FSR Upscaling to version '%s' because of r.FidelityFX.FSR4.RequestProvider=%d"), *FString(Desc.versionNames[i]), RequestedFSRProvider);
+
+									ffxOverrideVersion versionOverride = {};
+									versionOverride.header.type = FFX_API_DESC_TYPE_OVERRIDE_VERSION;
+									versionOverride.versionId = Desc.versionIds[i];
+									
+									Params.header.pNext = &versionOverride.header;
+									success = true;
+									break;
+								}
+							}
+
+							if (!success)
+							{
+								UE_LOG(LogFSR4, Warning, TEXT("Could not find a legal FSR Upscaling provider for r.FidelityFX.FSR4.RequestProvider=%d.  Falling back to the default provider for current configuration."), RequestedFSRProvider);
+							}
+						}
+					}
+				}
+				FSR4State->RequestedFSRProvider = RequestedFSRProvider;
+
 				FfxErrorCode ErrorCode = ApiAccessor->ffxCreateContext(&FSR4State->Fsr4, &Params.header);
 				check(ErrorCode == FFX_OK);
 				if (ErrorCode == FFX_OK)
@@ -1823,8 +1868,14 @@ void FFXFSR4TemporalUpscaler::AddPasses(
 
 			auto Texture = PassParameters->OutputTexture->GetRHI();
 			{
+#if RHI_NEW_GPU_PROFILER
+				RHI_BREADCRUMB_EVENT_STAT(RHICmdList, FidelityFXFSR4Dispatch, "FidelityFXFSR4Dispatch");
+#else
 				SCOPED_DRAW_EVENT(RHICmdList, FidelityFXFSR4Dispatch);
 				SCOPED_GPU_STAT(RHICmdList, FidelityFXFSR4Dispatch);
+#endif
+
+				FSR4State->PollActivity();
 
 				//-------------------------------------------------------------------------------------
 				// Dispatch FSR4
@@ -1847,6 +1898,14 @@ void FFXFSR4TemporalUpscaler::AddPasses(
 					DispatchParams.commandList = ApiAccess->GetNativeCommandBuffer(cmd, Texture);
 					Code = ApiAccess->ffxDispatch(&FSR4State->Fsr4, &DispatchParams.header);
 					check(Code == FFX_API_RETURN_OK);
+
+					if (Code == FFX_API_RETURN_OK)
+					{
+						FGPUFenceRHIRef Fence = RHICreateGPUFence(TEXT("FSR4 Dispatch Fence"));
+						cmd.WriteGPUFence(Fence);
+
+						FSR4State->PushActivity(Fence);
+					}
 				});
 			}
 
@@ -1872,7 +1931,7 @@ void FFXFSR4TemporalUpscaler::AddPasses(
 			GraphBuilder.QueueTextureExtraction(OutputTexture, &View.ViewState->PrevFrameViewInfo.TemporalAAHistory.RT[0]);
 		}
 
-		DeferredCleanup(GFrameCounterRenderThread);
+		DeferredCleanup();
 
 #if UE_VERSION_AT_LEAST(5, 0, 0)
 		return Outputs;

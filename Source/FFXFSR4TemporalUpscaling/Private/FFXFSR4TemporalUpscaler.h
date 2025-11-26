@@ -247,7 +247,7 @@ public:
 	}
 
 private:
-	void DeferredCleanup(uint64 FrameNum) const;
+	void DeferredCleanup(bool force = false) const;
 	bool QueryCurrentlyUsedResources(IFFXSharedBackend* ApiAccesor, ffxContext* context) const;
 
 	inline bool IsResourceUsedByCurrentUpscaler(uint64_t queryId) const	{ return (CurrentUsedResources & queryId); }

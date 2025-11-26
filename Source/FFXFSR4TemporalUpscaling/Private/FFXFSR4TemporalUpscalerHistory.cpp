@@ -30,8 +30,14 @@ TCHAR const* FFXFSR4TemporalUpscalerHistory::GetUpscalerName()
 	return FfxFsr4DebugName;
 }
 
+uint64 FFXFSR4TemporalUpscalerHistory::GetFsrHistoryIdFromDebugName()
+{
+	return *(uint32*)FFXFSR4TemporalUpscalerHistory::FfxFsr4DebugName;
+}
+
 FFXFSR4TemporalUpscalerHistory::FFXFSR4TemporalUpscalerHistory(FSR4StateRef NewState, FFXFSR4TemporalUpscaler* _Upscaler, TRefCountPtr<IPooledRenderTarget> InMotionVectors)
 {
+	FsrHistoryId = FFXFSR4TemporalUpscalerHistory::GetFsrHistoryIdFromDebugName();
 	MotionVectors = InMotionVectors;
 	Upscaler = _Upscaler;
 	SetState(NewState);
@@ -43,6 +49,10 @@ FFXFSR4TemporalUpscalerHistory::~FFXFSR4TemporalUpscalerHistory()
 	{
 		Upscaler->ReleaseState(Fsr4);
 	}
+}
+
+bool FFXFSR4TemporalUpscalerHistory::HasFsrHistoryId() const {
+	return FsrHistoryId == FFXFSR4TemporalUpscalerHistory::GetFsrHistoryIdFromDebugName();
 }
 
 #if UE_VERSION_AT_LEAST(5, 3, 0)

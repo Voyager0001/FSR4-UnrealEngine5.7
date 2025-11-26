@@ -140,6 +140,7 @@ extern FFXFSR4SETTINGS_API TAutoConsoleVariable<float> CVarFSR4ShadingChangeScal
 extern FFXFSR4SETTINGS_API TAutoConsoleVariable<float> CVarFSR4AccumulationAddedPerFrame;
 extern FFXFSR4SETTINGS_API TAutoConsoleVariable<float> CVarFSR4MinDisocclutionAccumulation;
 extern FFXFSR4SETTINGS_API TAutoConsoleVariable<int32> CVarFSR4DeferDelete;
+extern FFXFSR4SETTINGS_API TAutoConsoleVariable<int32> CVarRequestFSRProvider;
 
 //------------------------------------------------------------------------------------------------------
 // Console variables for Frame Interpolation.

@@ -30,10 +30,6 @@ The RHI backend has been removed.
 
 ## Known issues
 
-### Unreal 5.1.0
-
-The pre-built binary version of the 5.1 plugin requires Unreal Engine 5.1.1 due to an ABI incompatibility between 5.1.0 and 5.1.1. Please update to Unreal Engine 5.1.1.
-
 ### Plugin engine version warning
 
 When building the Unreal Engine from source it may result in the engine displaying a warning that the FSR 4 plugin was built for a different engine version. When this occurs, shaders may not be cooked and packaged properly. Using the appropriate FSR 4 plugin build for the major and minor version of the engine and modifying the patch number in the FSR4.uplugin file (and optionally the FSR4MovieRenderPipeline.uplugin file) to match the version of engine source being used is sufficient to resolve the error and ensure the shaders are properly cooked.
@@ -42,7 +38,7 @@ When building the Unreal Engine from source it may result in the engine displayi
 
 In specific circumstances static objects that use a material with World-Position-Offset do not always generate motion vectors. This affects FSR 4 plugin's ability to correctly upscale such materials and results in blurring/ghosting of the affected objects.
 
-For Unreal 5.1 objects with WPO should render velocity by default. The default is to render velocity in the base pass and this can be changed using `r.VelocityOutputPass`. If it is necessary `r.Velocity.ForceOutput` can be used to force all primitives to emit velocity.
+Objects with WPO should render velocity by default. The default is to render velocity in the base pass and this can be changed using `r.VelocityOutputPass`. If it is necessary `r.Velocity.ForceOutput` can be used to force all primitives to emit velocity.
 
 ### UE post-processing volume screen-percentage overrides
 
@@ -58,7 +54,7 @@ When using frame interpolation and `r.FidelityFX.FI.OverrideSwapChainDX12` enabl
 
 ## Setup
 
-The FSR 4 and FSR4MovieRenderPipeline plugins are intended for [Unreal Engine 5.1.1](https://github.com/EpicGames/UnrealEngine/releases/tag/5.1.1-release)\* or later.
+The FSR 4 and FSR4MovieRenderPipeline plugins are intended for [Unreal Engine 5.2.0](https://github.com/EpicGames/UnrealEngine/releases/tag/5.2.0-release)\* or later.
 
 If you are not a registered Unreal Engine developer, you will need to [follow these instructions](https://github.com/EpicGames/Signup) and register for access to this link.
 
@@ -262,7 +258,7 @@ Where selecting an existing shading model is unsuitable follow the installation 
 
 This problem cannot currently be resolved in the Forward Renderer where the Shading Model cannot be determined by the plugin.
 
-Substrate materials (Strata in Unreal 5.1) are currently not supported by the LitReactive shading model.
+Substrate materials are currently not supported by the LitReactive shading model.
 
 ### Optimizing translucency appearance
 
@@ -314,10 +310,18 @@ FSR 3 does not smooth dither effects in the way other upscalers do. They are ret
 | `r.FidelityFX.FSR4.MinDisocclutionAccumulation`            | -0.333        | -1.0 - 1.0  | Increasing this value may reduce white pixel temporal flickering around swaying thin objects that are disoccluding one another often. Too high value may increase ghosting. A sufficiently negative value means for pixel coordinate at frame N that is disoccluded, add accumulation starting at frame N+2 based on r.FidelityFX.FSR4.AccumulationAddedPerFrame.  |
 | `r.FidelityFX.FSR4.CustomStencilMask`                      | 0             | 0 - 255     | A bitmask 0-255 (0-0xff) used when accessing the custom stencil to read reactive mask values. Setting to 0 will disable use of the custom-depth/stencil buffer. Default is 0.                                                                                            |
 | `r.FidelityFX.FSR4.CustomStencilShift`                     | 0             | 0 - 31      | Bitshift to apply to the value read from the custom stencil when using it to provide reactive mask values. Default is 0.                                                                                                                                                 |
+|`r.FidelityFX.FSR4.RequestProvider`                         | 0             | 0, 2, 3, 4  | Assigns the Upscaler provider to a specific implementation of FSR.  Can be used to request selection of FSR3 on a configuration that should support FSR4, for example.  Has no effect if the FSR provider cannot be found. A value of 0 selects the highest supported version. |
 
 
 
 ## Version history
+
+### 4.0.2b
+
+  - Added support for Unreal Engine 5.7.
+  - Removed support for Unreal Engine 5.1
+  - Added a CVar `r.FidelityFX.FSR4.RequestProvider` to select the underlying FSR upscaler version.
+  - Fixed an issue where using FSR4 as a project plugin would cause "missing modules" error on startup.
 
 ### 4.0.2a
 

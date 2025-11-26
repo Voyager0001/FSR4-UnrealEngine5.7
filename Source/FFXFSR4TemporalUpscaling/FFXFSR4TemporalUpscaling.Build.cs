@@ -28,14 +28,7 @@ public class FFXFSR4TemporalUpscaling : ModuleRules
 	public FFXFSR4TemporalUpscaling(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
-
-        PublicIncludePaths.Add(EngineDirectory + "/Source/Runtime/Renderer/Internal");
-
-        PublicIncludePaths.AddRange(
-			new string[] {
-				EngineDirectory + "/Source/Runtime/Renderer/Private",
-			}
-		);
+        bTreatAsEngineModule = true;
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]

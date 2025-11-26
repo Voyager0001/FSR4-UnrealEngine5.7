@@ -10,9 +10,9 @@
 	"DocsURL": "",
 	"MarketplaceURL": "",
 	"SupportURL": "",
-	"EngineVersion": "5.7.x",
+	"EngineVersion": "5.7.0",
 	"CanContainContent": true,
-	"Installed": false,
+	"Installed": true,
 	"SupportedTargetPlatforms": [
 		"Win64"
 	],

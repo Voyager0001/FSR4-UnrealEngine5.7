@@ -309,7 +309,11 @@ void FFXFrameInterpolationCustomPresent::BeginDrawing()
 // @return	true if native Present should be also be performed; false otherwise. If it returns
 // true, then InOutSyncInterval could be modified to switch between VSync/NoVSync for the normal 
 // Present.  Must match value previously returned by NeedsNativePresent for this frame.
+#if UE_VERSION_AT_LEAST(5, 7, 0)
+bool FFXFrameInterpolationCustomPresent::Present(IRHICommandContext& RHICmdContext, int32& InOutSyncInterval)
+#else
 bool FFXFrameInterpolationCustomPresent::Present(int32& InOutSyncInterval)
+#endif
 {
 	bool bDrawDebugView = false;
 #if (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT || UE_BUILD_TEST)

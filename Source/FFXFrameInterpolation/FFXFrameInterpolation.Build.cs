@@ -28,15 +28,9 @@ public class FFXFrameInterpolation : ModuleRules
 	public FFXFrameInterpolation(ReadOnlyTargetRules Target) : base(Target)
 	{
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+        bTreatAsEngineModule = true;
 
-		PublicIncludePaths.AddRange(
-			new string[] {
-				EngineDirectory + "/Source/Runtime/Renderer/Private",
-			}
-			);
-        PublicIncludePaths.Add(EngineDirectory + "/Source/Runtime/Renderer/Internal");
-
-        PublicDependencyModuleNames.AddRange(
+		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Engine",

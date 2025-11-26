@@ -150,7 +150,11 @@ public:
 	// @return	true if native Present should be also be performed; false otherwise. If it returns
 	// true, then InOutSyncInterval could be modified to switch between VSync/NoVSync for the normal 
 	// Present.  Must match value previously returned by NeedsNativePresent for this frame.
-	bool Present(int32& InOutSyncInterval); //override final;
+#if UE_VERSION_AT_LEAST(5, 7, 0)
+	bool Present(IRHICommandContext& RHICmdContext, int32& InOutSyncInterval) override final;
+#else
+	bool Present(int32& InOutSyncInterval) override final;
+#endif
 
 	// Called from RHI thread after native Present has been called
 	void PostPresent() override final;

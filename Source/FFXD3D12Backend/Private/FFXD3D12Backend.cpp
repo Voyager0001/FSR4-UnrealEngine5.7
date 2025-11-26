@@ -32,6 +32,12 @@
 #include "FFXFrameInterpolationApi.h"
 #include "FFXD3D12Includes.h"
 
+#if UE_VERSION_AT_LEAST(5, 7, 0)
+#ifndef INTEL_GPU_CRASH_DUMPS
+#	define INTEL_GPU_CRASH_DUMPS 0
+#endif
+#endif
+
 #if UE_VERSION_AT_LEAST(5, 2, 0)
 #define FFX_UE_SUPPORTS_SWAPCHAIN_PROVIDER_V1 1
 #else

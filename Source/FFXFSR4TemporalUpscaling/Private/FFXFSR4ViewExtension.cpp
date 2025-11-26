@@ -52,24 +52,19 @@ static void ForceLandscapeHISMMobility(FSceneViewFamily& InViewFamily, ALandscap
 #endif
 					for (auto MaterialInfo : Materials)
 					{
-						UMaterialInterface* MaterialInterface = MaterialInfo.MaterialInterface;
-						if (MaterialInterface)
+						const UMaterial* Material = MaterialInfo.MaterialInterface->GetMaterial_Concurrent();
+#if UE_VERSION_AT_LEAST(5, 7, 0)
+						if (const FMaterialResource* MaterialResource = Material->GetMaterialResource(InViewFamily.GetShaderPlatform()))
+#else
+						if (const FMaterialResource* MaterialResource = Material->GetMaterialResource(InViewFamily.GetFeatureLevel()))
+#endif
 						{
-							const UMaterial* Material = MaterialInterface->GetMaterial_Concurrent();
-							if (Material)
+							check(IsInGameThread());
+							bool bAlwaysHasVelocity = MaterialResource->MaterialModifiesMeshPosition_GameThread();
+							if (bAlwaysHasVelocity)
 							{
-								// Use GetMaterialResource with proper parameters
-								FMaterialResource* MaterialResource = Material->GetMaterialResource(InViewFamily.GetFeatureLevel(), nullptr);
-								if (MaterialResource)
-								{
-									check(IsInGameThread());
-									bool bAlwaysHasVelocity = MaterialResource->MaterialModifiesMeshPosition_GameThread();
-									if (bAlwaysHasVelocity)
-									{
-										Used->Mobility = EComponentMobility::Stationary;
-										break;
-									}
-								}
+								Used->Mobility = EComponentMobility::Stationary;
+								break;
 							}
 						}
 					}

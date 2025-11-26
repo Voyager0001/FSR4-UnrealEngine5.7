@@ -781,6 +781,8 @@ private:
 	*  need to happen before the merged pass (i.e. in the prologue) are done in A. Any transitions after
 	*  the render pass merge are done in C.
 	*/
+
+#ifdef FFXRDGBUILDER_DELETE
 	FRDGPassHandle GetEpilogueBarrierPassHandle(FRDGPassHandle Handle)
 	{
 		return Passes[Handle]->EpilogueBarrierPass;
@@ -848,6 +850,7 @@ private:
 
 	FRDGSubresourceState* AllocSubresource(const FRDGSubresourceState& Other);
 	FRDGSubresourceState* AllocSubresource();
+#endif // FFXRDGBUILDER_DELETE
 
 	//////////////////////////////////////////////////////////////////////////////
 	// Async Setup Queue
@@ -934,6 +937,7 @@ private:
 	//////////////////////////////////////////////////////////////////////////////
 	// Reserved Buffer Commits
 
+#ifdef FFXRDGBUILDER_DELETE
 	FRDGBufferReservedCommitHandle AcquireReservedCommitHandle(FRDGBuffer* Buffer)
 	{
 		FRDGBufferReservedCommitHandle Handle;
@@ -947,6 +951,7 @@ private:
 
 		return Handle;
 	}
+#endif // FFXRDGBUILDER_DELETE
 
 	uint64 GetReservedCommitSize(FRDGBufferReservedCommitHandle Handle)
 	{

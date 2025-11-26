@@ -37,6 +37,10 @@
 #include "RHIDefinitions.h"
 #endif
 
+#if UE_VERSION_OLDER_THAN(5, 3, 0)
+#include "PostProcess/TemporalAA.h"
+#endif
+
 IMPLEMENT_MODULE(FFXFSR4TemporalUpscalingModule, FFXFSR4TemporalUpscaling)
 
 #define LOCTEXT_NAMESPACE "FSR4"

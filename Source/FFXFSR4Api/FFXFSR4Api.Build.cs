@@ -32,7 +32,6 @@ public class FFXFSR4Api : ModuleRules
 		PublicIncludePaths.AddRange(
 			new string[] {
 				Path.Combine(ModuleDirectory, "../fidelityfx-sdk/Kits/FidelityFX/upscalers/include"),
-				Path.Combine(ModuleDirectory, "../fidelityfx-sdk/Kits/FidelityFX/upscalers/fsr4/include"),
 			}
 			);
 

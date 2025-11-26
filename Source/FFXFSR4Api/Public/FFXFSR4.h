@@ -44,7 +44,7 @@
 	#undef FFX_API
 	#define FFX_API __declspec(dllexport)
 #endif
-	
+
 	#include "ffx_upscale.h"
 
 	THIRD_PARTY_INCLUDES_END
